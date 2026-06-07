@@ -1,0 +1,41 @@
+[
+  {
+    "test": "Vitamin D (25-OH)",
+    "params": [
+      { "name": "Vitamin D", "low": 50.0, "high": 99999.0, "sex": "any" }
+    ],
+    "require_lab_normal_flag": true,
+    "delta": { "enabled": true, "param": "Vitamin D", "max_adverse_pct": 20.0 },
+    "med_context_block": [],
+    "condition_context_block": [],
+    "require_prior_result": true,
+    "fail_safe": "route_to_human",
+    "tier_a_auto_file": true
+  },
+  {
+    "test": "TSH",
+    "params": [
+      { "name": "TSH", "low": 0.27, "high": 4.20, "sex": "any" }
+    ],
+    "require_lab_normal_flag": true,
+    "delta": { "enabled": true, "param": "TSH", "max_adverse_pct": 20.0 },
+    "med_context_block": ["Levothyroxine", "Carbimazole"],
+    "condition_context_block": ["Hypothyroidism", "Hyperthyroidism", "Pregnancy"],
+    "require_prior_result": true,
+    "fail_safe": "route_to_human",
+    "tier_a_auto_file": true
+  },
+  {
+    "test": "HbA1c",
+    "params": [
+      { "name": "HbA1c", "low": 0.0, "high": 41.99, "sex": "any" }
+    ],
+    "require_lab_normal_flag": true,
+    "delta": { "enabled": true, "param": "HbA1c", "max_adverse_pct": 20.0 },
+    "med_context_block": ["Metformin", "Gliclazide", "Insulin"],
+    "condition_context_block": ["Diabetes", "Pre-diabetes", "IGT", "Pregnancy"],
+    "require_prior_result": true,
+    "fail_safe": "route_to_human",
+    "tier_a_auto_file": true
+  }
+]

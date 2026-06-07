@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMIS Auto-Filer | Shadow Mode PoC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <header class="bg-slate-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-semibold tracking-tight">Clinical Auto-Filer PoC</h1>
+                <p class="text-sm text-slate-400">Shadow Mode Environment — M1 Rule Set</p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span class="flex h-3 w-3">
+                  <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </span>
+                <span class="text-sm text-emerald-400 font-medium">System Armed</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <div class="bg-white rounded-lg shadow border border-slate-200 p-6 mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+                <h2 class="text-lg font-medium text-slate-800">EMIS Connector Simulator</h2>
+                <p class="text-sm text-slate-500 mt-1">Fetch unfiled results and run them through the clinical rules engine.</p>
+            </div>
+            <button id="run-btn" onclick="runShadowCycle()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-md transition-colors flex items-center shadow-sm">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Run Shadow Cycle
+            </button>
+        </div>
+
+        <div class="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                <h3 class="text-base font-semibold text-slate-800">Audit Log & Decisions</h3>
+                <span id="process-status" class="text-sm text-slate-500 hidden">
+                    <div class="inline-block w-4 h-4 border-2 border-slate-200 border-t-blue-600 rounded-full loader mr-2 align-middle"></div>
+                    Processing results...
+                </span>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-medium tracking-wider text-left">
+                        <tr>
+                            <th scope="col" class="px-6 py-3">Patient ID</th>
+                            <th scope="col" class="px-6 py-3">Test Type</th>
+                            <th scope="col" class="px-6 py-3">Value</th>
+                            <th scope="col" class="px-6 py-3">Decision</th>
+                            <th scope="col" class="px-6 py-3">Audit Trail / Rule Triggered</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-table-body" class="bg-white divide-y divide-slate-200 text-sm">
+                        <tr>
+                            <td colspan="5" class="px-6 py-10 text-center text-slate-400 italic">
+                                Waiting for cycle trigger...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        async function runShadowCycle() {
+            const btn = document.getElementById('run-btn');
+            const status = document.getElementById('process-status');
+            const tbody = document.getElementById('audit-table-body');
+            
+            // UI Loading State
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            status.classList.remove('hidden');
+            
+            try {
+                // Call the FastAPI backend
+                const response = await fetch('/api/run-shadow-cycle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                tbody.innerHTML = ''; // Clear table
+                
+                if (data.log && data.log.length > 0) {
+                    data.log.forEach(item => {
+                        // In the real version, you will pull patient_id, test_type, and value from your engine output
+                        // For this demo mock, we format the placeholder data safely
+                        const patientId = item.patient || "Unknown";
+                        const testType = item.test_type || "N/A";
+                        const value = item.value || "-";
+                        const decision = item.decision || "Pending Integration";
+                        const reasoning = item.reasoning || "Engine not fully connected";
+
+                        // Determine badge colors based on the decision
+                        let badgeClass = "bg-slate-100 text-slate-800 border-slate-200";
+                        if (decision.includes("Auto-file")) {
+                            badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                        } else if (decision.includes("Route")) {
+                            badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
+                        }
+
+                        const row = `
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-6 py-4 whitespace-nowrap text-slate-600 font-mono text-xs">${patientId}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-slate-900 font-medium">${testType}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-slate-600">${value}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${badgeClass}">
+                                        ${decision}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-slate-500">${reasoning}</td>
+                            </tr>
+                        `;
+                        tbody.insertAdjacentHTML('beforeend', row);
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-slate-500">No results fetched.</td></tr>`;
+                }
+
+            } catch (error) {
+                console.error("Error running cycle:", error);
+                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-red-500 font-medium">Connection Error: Ensure the FastAPI server is running.</td></tr>`;
+            } finally {
+                // Restore UI State
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                status.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
