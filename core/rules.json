@@ -37,5 +37,18 @@
     "require_prior_result": true,
     "fail_safe": "route_to_human",
     "tier_a_auto_file": true
+  },
+  {
+    "test": "eGFR",
+    "params": [
+      { "name": "eGFR", "low": 60.0, "high": 99999.0, "sex": "any" }
+    ],
+    "require_lab_normal_flag": true,
+    "delta": { "enabled": true, "param": "eGFR", "max_adverse_pct": 20.0 },
+    "med_context_block": ["Ramipril", "Losartan", "Spironolactone"],
+    "condition_context_block": ["Chronic Kidney Disease", "AKI"],
+    "require_prior_result": true,
+    "fail_safe": "route_to_human",
+    "tier_a_auto_file": true
   }
 ]

@@ -3,152 +3,352 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EMIS Auto-Filer | Shadow Mode PoC</title>
+    <title>EMIS Auto-Filer | Operator Console</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .loader {
-            border-top-color: #3498db;
-            -webkit-animation: spinner 1.5s linear infinite;
-            animation: spinner 1.5s linear infinite;
-        }
-        @keyframes spinner {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
 </head>
-<body class="bg-slate-50 min-h-screen">
-
-    <header class="bg-slate-900 text-white shadow-md">
-        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+<body class="bg-slate-100 min-h-screen text-slate-900">
+    <header class="bg-slate-900 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
             <div>
-                <h1 class="text-xl font-semibold tracking-tight">Clinical Auto-Filer PoC</h1>
-                <p class="text-sm text-slate-400">Shadow Mode Environment — M1 Rule Set</p>
+                <h1 class="text-xl font-semibold tracking-tight">Blood Filing Operator Console</h1>
+                <p class="text-sm text-slate-400">Shadow-safe queue with fast human review controls</p>
             </div>
-            <div class="flex items-center space-x-3">
-                <span class="flex h-3 w-3">
-                  <span class="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            <div class="flex items-center gap-3 text-xs sm:text-sm">
+                <span class="inline-flex items-center rounded-full bg-emerald-600/20 px-3 py-1 text-emerald-300 border border-emerald-500/50">
+                    Human in the loop
                 </span>
-                <span class="text-sm text-emerald-400 font-medium">System Armed</span>
+                <span class="inline-flex items-center rounded-full bg-blue-600/20 px-3 py-1 text-blue-300 border border-blue-500/50">
+                    Data stays local
+                </span>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        <div class="bg-white rounded-lg shadow border border-slate-200 p-6 mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div>
-                <h2 class="text-lg font-medium text-slate-800">EMIS Connector Simulator</h2>
-                <p class="text-sm text-slate-500 mt-1">Fetch unfiled results and run them through the clinical rules engine.</p>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <section class="bg-white border border-slate-200 rounded-lg shadow-sm p-5">
+            <div class="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
+                <div>
+                    <h2 class="font-semibold text-lg">Cycle Controls</h2>
+                    <p class="text-sm text-slate-500">Run ingestion + rule evaluation, then process each queued result with quick actions.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button id="run-btn" class="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+                        Run Shadow Cycle
+                    </button>
+                    <button id="refresh-btn" class="px-4 py-2 rounded-md bg-slate-700 text-white hover:bg-slate-800 transition-colors">
+                        Refresh Queue
+                    </button>
+                </div>
             </div>
-            <button id="run-btn" onclick="runShadowCycle()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-md transition-colors flex items-center shadow-sm">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                Run Shadow Cycle
-            </button>
-        </div>
+            <p id="banner" class="mt-3 text-sm text-slate-600"></p>
+        </section>
 
-        <div class="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                <h3 class="text-base font-semibold text-slate-800">Audit Log & Decisions</h3>
-                <span id="process-status" class="text-sm text-slate-500 hidden">
-                    <div class="inline-block w-4 h-4 border-2 border-slate-200 border-t-blue-600 rounded-full loader mr-2 align-middle"></div>
-                    Processing results...
-                </span>
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <article class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-slate-500">Pending Review</p>
+                <p id="pending-count" class="text-2xl font-semibold mt-1">0</p>
+            </article>
+            <article class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-slate-500">Tier-A Auto Candidates</p>
+                <p id="auto-count" class="text-2xl font-semibold mt-1 text-emerald-700">0</p>
+            </article>
+            <article class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wide text-slate-500">Route to Human</p>
+                <p id="route-count" class="text-2xl font-semibold mt-1 text-amber-700">0</p>
+            </article>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-lg shadow-sm">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="font-semibold">Review Queue</h3>
+                <p class="text-xs text-slate-500">Use quick buttons, then amend notes only if needed.</p>
             </div>
-            
+            <div id="queue-container" class="p-5 space-y-4">
+                <p class="text-slate-500 text-sm">No pending results yet.</p>
+            </div>
+        </section>
+
+        <section class="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-200">
+                <h3 class="font-semibold">Recent Audit Events</h3>
+            </div>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-medium tracking-wider text-left">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
                         <tr>
-                            <th scope="col" class="px-6 py-3">Patient ID</th>
-                            <th scope="col" class="px-6 py-3">Test Type</th>
-                            <th scope="col" class="px-6 py-3">Value</th>
-                            <th scope="col" class="px-6 py-3">Decision</th>
-                            <th scope="col" class="px-6 py-3">Audit Trail / Rule Triggered</th>
+                            <th class="px-4 py-3 text-left">When</th>
+                            <th class="px-4 py-3 text-left">Result</th>
+                            <th class="px-4 py-3 text-left">Stage</th>
+                            <th class="px-4 py-3 text-left">Action / Decision</th>
+                            <th class="px-4 py-3 text-left">Comment</th>
                         </tr>
                     </thead>
-                    <tbody id="audit-table-body" class="bg-white divide-y divide-slate-200 text-sm">
-                        <tr>
-                            <td colspan="5" class="px-6 py-10 text-center text-slate-400 italic">
-                                Waiting for cycle trigger...
-                            </td>
-                        </tr>
+                    <tbody id="audit-body" class="divide-y divide-slate-100">
+                        <tr><td colspan="5" class="px-4 py-4 text-slate-500">No audit entries yet.</td></tr>
                     </tbody>
                 </table>
             </div>
-        </div>
-
+        </section>
     </main>
 
     <script>
-        async function runShadowCycle() {
-            const btn = document.getElementById('run-btn');
-            const status = document.getElementById('process-status');
-            const tbody = document.getElementById('audit-table-body');
-            
-            // UI Loading State
-            btn.disabled = true;
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
-            status.classList.remove('hidden');
-            
-            try {
-                // Call the FastAPI backend
-                const response = await fetch('/api/run-shadow-cycle', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                const data = await response.json();
-                tbody.innerHTML = ''; // Clear table
-                
-                if (data.log && data.log.length > 0) {
-                    data.log.forEach(item => {
-                        // In the real version, you will pull patient_id, test_type, and value from your engine output
-                        // For this demo mock, we format the placeholder data safely
-                        const patientId = item.patient || "Unknown";
-                        const testType = item.test_type || "N/A";
-                        const value = item.value || "-";
-                        const decision = item.decision || "Pending Integration";
-                        const reasoning = item.reasoning || "Engine not fully connected";
+        const state = {
+            queue: [],
+            actions: {}
+        };
 
-                        // Determine badge colors based on the decision
-                        let badgeClass = "bg-slate-100 text-slate-800 border-slate-200";
-                        if (decision.includes("Auto-file")) {
-                            badgeClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
-                        } else if (decision.includes("Route")) {
-                            badgeClass = "bg-amber-50 text-amber-700 border-amber-200";
-                        }
+        function escapeHtml(value) {
+            return String(value ?? "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll("\"", "&quot;")
+                .replaceAll("'", "&#039;");
+        }
 
-                        const row = `
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4 whitespace-nowrap text-slate-600 font-mono text-xs">${patientId}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-slate-900 font-medium">${testType}</td>
-                                <td class="px-6 py-4 whitespace-nowrap text-slate-600">${value}</td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${badgeClass}">
-                                        ${decision}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-slate-500">${reasoning}</td>
-                            </tr>
-                        `;
-                        tbody.insertAdjacentHTML('beforeend', row);
-                    });
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-slate-500">No results fetched.</td></tr>`;
-                }
-
-            } catch (error) {
-                console.error("Error running cycle:", error);
-                tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-red-500 font-medium">Connection Error: Ensure the FastAPI server is running.</td></tr>`;
-            } finally {
-                // Restore UI State
-                btn.disabled = false;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                status.classList.add('hidden');
+        function setBanner(message, kind = "info") {
+            const banner = document.getElementById("banner");
+            banner.textContent = message;
+            banner.className = "mt-3 text-sm ";
+            if (kind === "error") {
+                banner.className += "text-red-600";
+            } else if (kind === "success") {
+                banner.className += "text-emerald-700";
+            } else {
+                banner.className += "text-slate-600";
             }
         }
+
+        async function fetchJson(url, options = {}) {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const body = await response.text();
+                throw new Error(`HTTP ${response.status}: ${body}`);
+            }
+            return response.json();
+        }
+
+        function renderStats() {
+            const pending = state.queue.length;
+            const auto = state.queue.filter(item => item.engine_decision?.includes("Auto-file")).length;
+            const routed = pending - auto;
+            document.getElementById("pending-count").textContent = String(pending);
+            document.getElementById("auto-count").textContent = String(auto);
+            document.getElementById("route-count").textContent = String(routed);
+        }
+
+        function getBadgeClass(decision) {
+            if (decision?.includes("Auto-file")) {
+                return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+            }
+            return "bg-amber-50 text-amber-700 border border-amber-200";
+        }
+
+        function actionOptionsHtml(selectedKey) {
+            return Object.entries(state.actions)
+                .map(([key, action]) => {
+                    const selected = key === selectedKey ? "selected" : "";
+                    return `<option value="${escapeHtml(key)}" ${selected}>${escapeHtml(action.label)}</option>`;
+                })
+                .join("");
+        }
+
+        function renderQueue() {
+            const container = document.getElementById("queue-container");
+            if (!state.queue.length) {
+                container.innerHTML = `<p class="text-slate-500 text-sm">No pending results. Run a cycle or refresh queue.</p>`;
+                return;
+            }
+
+            container.innerHTML = state.queue.map(item => {
+                const resultId = item.result_id;
+                const reasons = Array.isArray(item.reasoning) ? item.reasoning : [];
+                const reasonHtml = reasons.length
+                    ? `<ul class="list-disc pl-5 space-y-1">${reasons.map(reason => `<li>${escapeHtml(reason)}</li>`).join("")}</ul>`
+                    : `<p class="text-slate-500">No reasons logged.</p>`;
+
+                const actionKey = item.suggested_action_key || "route_clinician";
+                const suggestedComment = item.suggested_comment || "";
+
+                return `
+                    <article class="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                            <div class="space-y-1">
+                                <p class="text-xs text-slate-500">Result ID: <span class="font-mono">${escapeHtml(resultId)}</span></p>
+                                <p><span class="font-medium">Patient:</span> ${escapeHtml(item.patient_id)} | <span class="font-medium">Test:</span> ${escapeHtml(item.test_type)}</p>
+                                <p class="text-sm text-slate-700"><span class="font-medium">Value:</span> ${escapeHtml(item.value)} ${escapeHtml(item.units)}</p>
+                            </div>
+                            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${getBadgeClass(item.engine_decision)}">${escapeHtml(item.engine_decision)}</span>
+                        </div>
+
+                        <div class="mt-3 text-sm text-slate-700">
+                            <p class="font-medium mb-1">Why this recommendation:</p>
+                            ${reasonHtml}
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <button class="px-3 py-1.5 text-xs rounded-md bg-emerald-600 text-white hover:bg-emerald-700" onclick="applyQuickAction('${escapeHtml(resultId)}', '${escapeHtml(actionKey)}')">
+                                Apply Recommended
+                            </button>
+                            <button class="px-3 py-1.5 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700" onclick="applyQuickAction('${escapeHtml(resultId)}', 'file_normal')">
+                                File as Normal
+                            </button>
+                            <button class="px-3 py-1.5 text-xs rounded-md bg-amber-600 text-white hover:bg-amber-700" onclick="applyQuickAction('${escapeHtml(resultId)}', 'route_clinician')">
+                                Route to Clinician
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Action</label>
+                                <select id="action-${escapeHtml(resultId)}" onchange="syncCommentFromAction('${escapeHtml(resultId)}')" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm bg-white">
+                                    ${actionOptionsHtml(actionKey)}
+                                </select>
+                            </div>
+                            <div class="lg:col-span-2">
+                                <label class="block text-xs font-medium text-slate-600 mb-1">Prefilled comment (editable)</label>
+                                <textarea id="comment-${escapeHtml(resultId)}" rows="2" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm bg-white">${escapeHtml(suggestedComment)}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <label class="block text-xs font-medium text-slate-600 mb-1">Additional manual note (optional)</label>
+                            <input id="note-${escapeHtml(resultId)}" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm bg-white" placeholder="Only add when operator notes are needed">
+                        </div>
+
+                        <div class="mt-3">
+                            <button class="px-4 py-2 rounded-md bg-slate-900 text-white hover:bg-black text-sm" onclick="submitDecision('${escapeHtml(resultId)}')">
+                                Submit Decision
+                            </button>
+                        </div>
+                    </article>
+                `;
+            }).join("");
+        }
+
+        function renderAudit(items) {
+            const tbody = document.getElementById("audit-body");
+            if (!items.length) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-slate-500">No audit entries yet.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = items.map(item => {
+                const actionOrDecision = item.operator_action || item.engine_decision || "-";
+                return `
+                    <tr>
+                        <td class="px-4 py-3 whitespace-nowrap text-slate-600">${escapeHtml(item.timestamp)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-mono text-xs">${escapeHtml(item.result_id)}</td>
+                        <td class="px-4 py-3">${escapeHtml(item.stage)}</td>
+                        <td class="px-4 py-3">${escapeHtml(actionOrDecision)}</td>
+                        <td class="px-4 py-3">${escapeHtml(item.comment || item.reasoning || "-")}</td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        function syncCommentFromAction(resultId) {
+            const actionSelect = document.getElementById(`action-${resultId}`);
+            const commentInput = document.getElementById(`comment-${resultId}`);
+            if (!actionSelect || !commentInput) return;
+            const action = state.actions[actionSelect.value];
+            if (!action) return;
+            commentInput.value = action.default_comment;
+        }
+
+        function applyQuickAction(resultId, actionKey) {
+            const actionSelect = document.getElementById(`action-${resultId}`);
+            if (!actionSelect) return;
+            actionSelect.value = actionKey;
+            syncCommentFromAction(resultId);
+        }
+
+        async function submitDecision(resultId) {
+            const actionSelect = document.getElementById(`action-${resultId}`);
+            const commentInput = document.getElementById(`comment-${resultId}`);
+            const noteInput = document.getElementById(`note-${resultId}`);
+
+            const payload = {
+                result_id: resultId,
+                action_key: actionSelect.value,
+                comment_override: commentInput.value,
+                manual_note: noteInput.value,
+                operator_id: "Operator-Desk-1"
+            };
+
+            try {
+                await fetchJson("/api/submit-decision", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                setBanner(`Decision submitted for ${resultId}.`, "success");
+                await Promise.all([loadQueue(), loadAudit()]);
+            } catch (error) {
+                console.error(error);
+                setBanner(`Submit failed: ${error.message}`, "error");
+            }
+        }
+
+        async function loadActions() {
+            const data = await fetchJson("/api/quick-actions");
+            state.actions = data.actions || {};
+        }
+
+        async function loadQueue() {
+            const data = await fetchJson("/api/review-queue");
+            state.queue = data.items || [];
+            renderStats();
+            renderQueue();
+        }
+
+        async function loadAudit() {
+            const data = await fetchJson("/api/audit-log?limit=20");
+            renderAudit(data.items || []);
+        }
+
+        async function runShadowCycle() {
+            const runBtn = document.getElementById("run-btn");
+            runBtn.disabled = true;
+            runBtn.classList.add("opacity-50", "cursor-not-allowed");
+            setBanner("Running shadow cycle...", "info");
+            try {
+                const data = await fetchJson("/api/run-shadow-cycle", { method: "POST" });
+                setBanner(
+                    `Cycle complete. Processed ${data.processed_this_cycle} results, queue now has ${data.pending_queue_count}.`,
+                    "success"
+                );
+                await Promise.all([loadQueue(), loadAudit()]);
+            } catch (error) {
+                console.error(error);
+                setBanner(`Cycle failed: ${error.message}`, "error");
+            } finally {
+                runBtn.disabled = false;
+                runBtn.classList.remove("opacity-50", "cursor-not-allowed");
+            }
+        }
+
+        async function initializeDashboard() {
+            try {
+                await loadActions();
+                await Promise.all([loadQueue(), loadAudit()]);
+                setBanner("Console ready. Run a cycle or process existing queue items.");
+            } catch (error) {
+                console.error(error);
+                setBanner(`Initialization failed: ${error.message}`, "error");
+            }
+        }
+
+        document.getElementById("run-btn").addEventListener("click", runShadowCycle);
+        document.getElementById("refresh-btn").addEventListener("click", async () => {
+            try {
+                await Promise.all([loadQueue(), loadAudit()]);
+                setBanner("Queue refreshed.");
+            } catch (error) {
+                setBanner(`Refresh failed: ${error.message}`, "error");
+            }
+        });
+
+        initializeDashboard();
     </script>
 </body>
 </html>
